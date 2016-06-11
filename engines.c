@@ -35,8 +35,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <pthread.h>
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
+
+#define COMPARE_AND_SWAP(ptr,o,n)	__sync_bool_compare_and_swap(ptr,o,n)
+
 
 		 /*******************************
 		 *	       SYMBOL		*
@@ -45,13 +49,78 @@
 #define ENG_DESTROYED	0x0001
 
 typedef struct engref
-{ PL_engine_t  engine;			/* represented engine */
-  atom_t       symbol;			/* associated symbol */
-  qid_t	       query;			/* query of the engine */
-  term_t       argv;			/* arguments */
-  int	       flags;			/* flags */
+{ PL_engine_t    engine;		/* represented engine */
+  atom_t         symbol;		/* associated symbol */
+  qid_t	         query;			/* query of the engine */
+  term_t         argv;			/* arguments */
+  struct engref *next_free;		/* next in free list */
+  int	         flags;			/* flags */
 } engref;
 
+
+		 /*******************************
+		 *	     GC ENGINES		*
+		 *******************************/
+
+static engref *gced_engines = NULL;
+static int     engine_gc_running = FALSE;
+
+static void *
+engine_gc_loop(void *closure)
+{ for(;;)
+  { engref *e;
+
+    do
+    { e = gced_engines;
+    } while ( e && !COMPARE_AND_SWAP(&gced_engines, e, e->next_free) );
+
+    if ( e )
+    { PL_destroy_engine(e->engine);
+      PL_free(e);
+    } else
+    { break;
+    }
+  }
+
+  engine_gc_running = FALSE;
+  return NULL;
+}
+
+
+static void
+start_engine_gc_thread(void)
+{ if ( !engine_gc_running )
+  { pthread_attr_t attr;
+    int rc;
+    pthread_t thr;
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    engine_gc_running = TRUE;
+    rc = pthread_create(&thr, &attr, engine_gc_loop, NULL);
+    pthread_attr_destroy(&attr);
+    if ( rc != 0 )
+      Sdprintf("Failed to start engine gc thread\n");
+  }
+}
+
+
+static void
+gc_engine(engref *er)
+{ engref *h;
+
+  do
+  { h = gced_engines;
+    er->next_free = h;
+  } while( !COMPARE_AND_SWAP(&gced_engines, h, er) );
+
+  start_engine_gc_thread();
+}
+
+
+		 /*******************************
+		 *	 SYMBOL REFERENCES	*
+		 *******************************/
 
 static int
 write_engine_ref(IOSTREAM *s, atom_t eref, int flags)
@@ -75,11 +144,9 @@ release_engine_ref(atom_t aref)
   PL_engine_t e;
 
   if ( (e=ref->engine) )
-  { ref->engine = NULL;
-    Sdprintf("Must destroy engine ~p~n", e);
-    // PL_destroy_engine(e);
-  }
-  PL_free(ref);
+    gc_engine(ref);
+  else
+    PL_free(ref);
 
   return TRUE;
 }
@@ -265,7 +332,7 @@ pl_engine_destroy(term_t ref)
 
 
 install_t
-install_eng(void)
+install_engines(void)
 { PL_register_foreign("$engine_create", 3, pl_engine_create,  0);
   PL_register_foreign("engine_get",     2, pl_engine_get,     0);
   PL_register_foreign("engine_destroy", 1, pl_engine_destroy, 0);

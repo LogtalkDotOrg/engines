@@ -1,4 +1,4 @@
-engines.so:
+engines.so: engines.c Makefile
 	swipl-ld -share -Wall -O2 -gdwarf-2 -g3 -shared -o engines engines.c
 
 clean:
