@@ -16,3 +16,9 @@ e.g., large agent simulations.
 
 __This is a temporary repository__ interactors   will most likely end up
 in the core.
+
+## Installation
+
+  - Get SWI-Prolog (swipl-devel.git) from the git version
+  - Run make
+  - Run `swipl demo.pl` and play with the demos.
