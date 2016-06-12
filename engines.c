@@ -291,6 +291,7 @@ pl_engine_send_get(term_t ref, term_t to, term_t term)
 		       PL_unify(t, PL_yielded(er->query)) );
 		PL_erase(r);
 		assert(rc);			/* TBD: what if rc is FALSE? */
+		to = 0;				/* term was collected */
 		goto again;
 	      } else
 	      { PL_existence_error("engine_term", PL_yielded(er->query));
