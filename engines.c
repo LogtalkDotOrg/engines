@@ -266,10 +266,15 @@ pl_engine_get(term_t ref, term_t term)
     switch( PL_set_engine(er->engine, &me) )
     { case PL_ENGINE_SET:
       { term_t t;
+	int rc;
 
-	if ( PL_next_solution(er->query) )
-	{ record_t r = PL_record(er->argv+0);
-	  int rc;
+	if ( (rc=PL_next_solution(er->query)) )
+	{ record_t r;
+
+	  if ( rc == TRUE )
+	    r = PL_record(er->argv+0);
+	  else
+	    r = PL_record(PL_yielded(er->query));
 
 	  PL_set_engine(me, NULL);
 	  t = PL_new_term_ref();

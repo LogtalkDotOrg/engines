@@ -36,6 +36,7 @@
 	  [ engine_create/3,		% -Ref, ?Template, :Goal
 	    engine_create/4,		% -Ref, ?Template, :Goal, +Options
 	    engine_get/2,		% +Ref, -Term
+	    engine_return/1,		% +Term
 	    engine_destroy/1,		% +Ref
 	    current_engine/1		% ?Ref
 	  ]).
@@ -74,6 +75,18 @@ engine_create(Engine, Template, Goal, Options) :-
 %
 %	Destroy Engine. Eventually, engine  destruction   will  also  be
 %	subject to symbol garbage collection.
+
+%%	engine_return(+Term) is det.
+%
+%	Make engine_get/2 return with the given term.
+
+engine_return(Term) :-
+	engine_yield(Term, 2).
+
+engine_yield(_Term, _Code) :-
+	'$yield'.				% maps to I_YIELD
+
+'$yield'.					% fool xref
 
 %%	current_engine(?E)
 %
