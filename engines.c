@@ -257,7 +257,7 @@ pl_engine_create(term_t ref, term_t template_and_goal, term_t options)
 
 
 static foreign_t
-pl_engine_get(term_t ref, term_t term)
+pl_engine_send_get(term_t ref, term_t to, term_t term)
 { engref *er;
 
   if ( get_engine(ref, &er) )
@@ -268,13 +268,38 @@ pl_engine_get(term_t ref, term_t term)
       { term_t t;
 	int rc;
 
+      again:
 	if ( (rc=PL_next_solution(er->query)) )
 	{ record_t r;
 
-	  if ( rc == TRUE )
-	    r = PL_record(er->argv+0);
-	  else
-	    r = PL_record(PL_yielded(er->query));
+	  switch(rc)
+	  { case TRUE:
+	      r = PL_record(er->argv+0);
+	      break;
+	    case 2:
+	      r = PL_record(PL_yielded(er->query));
+	      break;
+	    case 3:
+	      if ( to )
+	      { term_t t;
+
+		PL_set_engine(me, NULL);
+		r = PL_record(to);
+		PL_set_engine(er->engine, NULL);
+		rc = ( (t = PL_new_term_ref()) &&
+		       PL_recorded(r, t) &&
+		       PL_unify(t, PL_yielded(er->query)) );
+		PL_erase(r);
+		assert(rc);			/* TBD: what if rc is FALSE? */
+		goto again;
+	      } else
+	      { PL_existence_error("engine_term", PL_yielded(er->query));
+		goto again;
+	      }
+	    default:
+	      Sdprintf("Yielded code %d!?\n", rc);
+	      assert(0);			/* TBD: error? */
+	  }
 
 	  PL_set_engine(me, NULL);
 	  t = PL_new_term_ref();
@@ -315,12 +340,28 @@ pl_engine_get(term_t ref, term_t term)
 
 
 static foreign_t
+pl_engine_get(term_t ref, term_t term)
+{ return pl_engine_send_get(ref, 0, term);
+}
+
+
+static foreign_t
+pl_engine_put(term_t ref, term_t to, term_t term)
+{ return pl_engine_send_get(ref, to, term);
+}
+
+
+static foreign_t
 pl_engine_destroy(term_t ref)
 { engref *er;
 
   if ( get_engine(ref, &er) )
   { if ( er->query )
-    { PL_close_query(er->query);
+    { PL_engine_t me;
+
+      PL_set_engine(er->engine, &me);
+      PL_close_query(er->query);
+      PL_set_engine(me, NULL);
       er->query = 0;
     }
     if ( er->engine )
@@ -340,5 +381,6 @@ install_t
 install_engines(void)
 { PL_register_foreign("$engine_create", 3, pl_engine_create,  0);
   PL_register_foreign("engine_get",     2, pl_engine_get,     0);
+  PL_register_foreign("engine_put",     3, pl_engine_put,     0);
   PL_register_foreign("engine_destroy", 1, pl_engine_destroy, 0);
 }

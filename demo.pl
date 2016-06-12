@@ -57,3 +57,59 @@ yield_loop(I, M) :-
 	engine_return(I),
 	I2 is I+1,
 	yield_loop(I2, M).
+
+%%	rd(+Length, -Sums) is det.
+%
+%	Use an engine to accumulate state.
+
+rd(N, Sums) :-
+	numlist(1, N, List),
+	setup_call_cleanup(
+	    engine_create(E, _, sum(0), []),
+	    maplist(engine_put(E), List, Sums),
+	    engine_destroy(E)).
+
+sum(Sum) :-
+	engine_read(New),
+	Sum1 is New + Sum,
+	engine_return(Sum1),
+	sum(Sum1).
+
+%%	whisper(N, Term)
+%
+%	Create a chain of N engines that whisper a term from the first
+%	to the second, ... up to the end.
+
+whisper(N, From, Final) :-
+	engine_create(Last, _, final),
+	whisper_list(N, Last, First),
+	engine_put(First, From, Final).
+
+whisper_list(0, First, First) :- !.
+whisper_list(N, Next, First) :-
+	engine_create(Me, _, add1_and_tell(Next)),
+	N1 is N - 1,
+	whisper_list(N1, Me, First).
+
+final :-
+	engine_read(X),
+	writeln(X).
+
+add1_and_tell(Next) :-
+	engine_read(X),
+	X2 is X + 1,
+	debug(whisper, 'Sending ~d to ~p', [X2, Next]),
+	engine_put(Next, X2, _).
+
+%%	no_data
+%
+%	Test what happens on engine_read/1 if there is no data to read.
+
+no_data :-
+	catch(
+	    setup_call_cleanup(
+		engine_create(E, _, sum(0), []),
+		maplist(engine_get(E), [1]),
+		engine_destroy(E)),
+	    Error,
+	    print_message(warning, Error)).

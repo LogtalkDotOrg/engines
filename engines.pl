@@ -36,7 +36,9 @@
 	  [ engine_create/3,		% -Ref, ?Template, :Goal
 	    engine_create/4,		% -Ref, ?Template, :Goal, +Options
 	    engine_get/2,		% +Ref, -Term
+	    engine_put/3,		% +Ref, +Term, -Reply
 	    engine_return/1,		% +Term
+	    engine_read/1,		% -Term
 	    engine_destroy/1,		% +Ref
 	    current_engine/1		% ?Ref
 	  ]).
@@ -71,6 +73,13 @@ engine_create(Engine, Template, Goal, Options) :-
 %	Goal. Fails of Goal has no  more   solutions.  If Goal raises an
 %	exception the exception is re-raised by this predicate.
 
+%%	engine_put(+Engine, +Term, -Reply) is semidet.
+%
+%	Same as engine_get/2, but transfer  Term   to  Engine  if Engine
+%	calls engine_read/1.
+%
+%	@tbd	Should we use a callback for Term?  Or a list of terms?
+
 %%	engine_destroy(+Engine) is det.
 %
 %	Destroy Engine. Eventually, engine  destruction   will  also  be
@@ -82,6 +91,9 @@ engine_create(Engine, Template, Goal, Options) :-
 
 engine_return(Term) :-
 	engine_yield(Term, 2).
+
+engine_read(Term) :-
+	engine_yield(Term, 3).
 
 engine_yield(_Term, _Code) :-
 	'$yield'.				% maps to I_YIELD
