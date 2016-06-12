@@ -36,7 +36,8 @@
 	  [ engine_create/3,		% -Ref, ?Template, :Goal
 	    engine_create/4,		% -Ref, ?Template, :Goal, +Options
 	    engine_get/2,		% +Ref, -Term
-	    engine_destroy/1		% +Ref
+	    engine_destroy/1,		% +Ref
+	    current_engine/1		% ?Ref
 	  ]).
 :- load_foreign_library(engines).
 
@@ -73,3 +74,10 @@ engine_create(Engine, Template, Goal, Options) :-
 %
 %	Destroy Engine. Eventually, engine  destruction   will  also  be
 %	subject to symbol garbage collection.
+
+%%	current_engine(?E)
+%
+%	True if E is a currently know engine.
+
+current_engine(E) :-
+	current_blob(E, engine).
