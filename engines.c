@@ -39,6 +39,8 @@
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
 
+static atom_t ATOM_end_of_file;
+
 #define COMPARE_AND_SWAP(ptr,o,n)	__sync_bool_compare_and_swap(ptr,o,n)
 
 
@@ -257,11 +259,19 @@ pl_engine_create(term_t ref, term_t template_and_goal, term_t options)
 
 
 static foreign_t
-pl_engine_send_get(term_t ref, term_t to, term_t term)
+pl_engine_send_get(term_t ref, term_t to_list, term_t term)
 { engref *er;
 
   if ( get_engine(ref, &er) )
   { PL_engine_t me;
+    term_t to_tail, to_head;
+
+    if ( to_list )
+    { to_tail = PL_copy_term_ref(to_list);
+      to_head = PL_new_term_ref();
+    } else
+    { to_tail = 0;
+    }
 
     switch( PL_set_engine(er->engine, &me) )
     { case PL_ENGINE_SET:
@@ -280,21 +290,24 @@ pl_engine_send_get(term_t ref, term_t to, term_t term)
 	      r = PL_record(PL_yielded(er->query));
 	      break;
 	    case 3:
-	      if ( to )
 	      { term_t t;
 
 		PL_set_engine(me, NULL);
-		r = PL_record(to);
+		if ( to_tail && PL_get_list(to_tail, to_head, to_tail) )
+		  r = PL_record(to_head);
+		else
+		  r = 0;
+
 		PL_set_engine(er->engine, NULL);
-		rc = ( (t = PL_new_term_ref()) &&
-		       PL_recorded(r, t) &&
-		       PL_unify(t, PL_yielded(er->query)) );
-		PL_erase(r);
+		if ( r )
+		{ rc = ( (t = PL_new_term_ref()) &&
+			 PL_recorded(r, t) &&
+			 PL_unify(t, PL_yielded(er->query)) );
+		  PL_erase(r);
+		} else
+		{ rc = PL_unify_atom(PL_yielded(er->query), ATOM_end_of_file);
+		}
 		assert(rc);			/* TBD: what if rc is FALSE? */
-		to = 0;				/* term was collected */
-		goto again;
-	      } else
-	      { PL_existence_error("engine_term", PL_yielded(er->query));
 		goto again;
 	      }
 	    default:
@@ -380,7 +393,9 @@ pl_engine_destroy(term_t ref)
 
 install_t
 install_engines(void)
-{ PL_register_foreign("$engine_create", 3, pl_engine_create,  0);
+{ ATOM_end_of_file = PL_new_atom("end_of_file");
+
+  PL_register_foreign("$engine_create", 3, pl_engine_create,  0);
   PL_register_foreign("engine_get",     2, pl_engine_get,     0);
   PL_register_foreign("engine_put",     3, pl_engine_put,     0);
   PL_register_foreign("engine_destroy", 1, pl_engine_destroy, 0);

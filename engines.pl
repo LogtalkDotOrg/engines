@@ -36,7 +36,7 @@
 	  [ engine_create/3,		% -Ref, ?Template, :Goal
 	    engine_create/4,		% -Ref, ?Template, :Goal, +Options
 	    engine_get/2,		% +Ref, -Term
-	    engine_put/3,		% +Ref, +Term, -Reply
+	    engine_put/3,		% +Ref, +Terms, -Reply
 	    engine_return/1,		% +Term
 	    engine_read/1,		% -Term
 	    engine_destroy/1,		% +Ref
@@ -73,12 +73,10 @@ engine_create(Engine, Template, Goal, Options) :-
 %	Goal. Fails of Goal has no  more   solutions.  If Goal raises an
 %	exception the exception is re-raised by this predicate.
 
-%%	engine_put(+Engine, +Term, -Reply) is semidet.
+%%	engine_put(+Engine, +Terms, -Reply) is semidet.
 %
-%	Same as engine_get/2, but transfer  Term   to  Engine  if Engine
-%	calls engine_read/1.
-%
-%	@tbd	Should we use a callback for Term?  Or a list of terms?
+%	Same as engine_get/2,  but  make  terms   from  the  list  Terms
+%	available for engine_read/1 when called from within Engine.
 
 %%	engine_destroy(+Engine) is det.
 %
@@ -91,6 +89,12 @@ engine_create(Engine, Template, Goal, Options) :-
 
 engine_return(Term) :-
 	engine_yield(Term, 2).
+
+%%	engine_read(-Term) is det.
+%
+%	Read the next term  from  the   list  of  terms provided through
+%	engine_put/3.  Returns  `end_of_file`  of  the    term  list  is
+%	exhausted.
 
 engine_read(Term) :-
 	engine_yield(Term, 3).
