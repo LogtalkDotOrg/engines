@@ -10,7 +10,7 @@
 
 :- dynamic queue/2.
 
-new_engine(Template, Goal, Engine) :- engine_create(Engine, Template, Goal).
+new_engine(Template, Goal, Engine) :- engine_create(Template, Goal, Engine).
 return(Term) :-	engine_return(Term).
 from_engine(Term) :- engine_read(Term).
 to_engine(Engine, Term) :-

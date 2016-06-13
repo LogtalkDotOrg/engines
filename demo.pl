@@ -10,7 +10,7 @@
 
 fa(Templ, Goal, List) :-
 	setup_call_cleanup(
-	    engine_create(E, Templ, Goal, []),
+	    engine_create(Templ, Goal, E),
 	    get_answers(E, List),
 	    engine_destroy(E)).
 
@@ -24,7 +24,7 @@ get_answers(_, []).
 %   Engine based findall/3 variant that finds at most N answers.
 
 find_at_most(N, Template, Goal, List) :-
-	engine_create(Engine, Template, Goal),
+	engine_create(Template, Goal, Engine),
 	collect_at_most(N, Engine, List0),
 	engine_destroy(Engine),
 	List = List0.
@@ -42,7 +42,7 @@ collect_at_most(_, _, []).
 %	Test that engines are subject to atom-GC.
 
 test_gc(N) :-
-	forall(between(1, N, _), engine_create(_, _, true)),
+	forall(between(1, N, _), engine_create(_, true, _)),
 	garbage_collect_atoms.
 
 %%	create_n(+Count, -Engines:list)
@@ -55,7 +55,7 @@ create_n(N, L) :-
 	maplist(create, L).
 
 create(E) :-
-	engine_create(E, _, true).
+	engine_create(_, true, E).
 
 %%	yield(+Length, -List)
 %
@@ -67,7 +67,7 @@ create(E) :-
 
 yield(Len, List) :-
 	setup_call_cleanup(
-	    engine_create(E, _, yield_loop(1,Len), []),
+	    engine_create(_, yield_loop(1,Len), E),
 	    get_answers(E, List),
 	    engine_destroy(E)).
 
@@ -84,7 +84,7 @@ yield_loop(I, M) :-
 rd(N, Sums) :-
 	numlist(1, N, List),
 	setup_call_cleanup(
-	    engine_create(E, _, sum(0), []),
+	    engine_create(_, sum(0), E),
 	    maplist([X]>>engine_put(E, [X]), List, Sums),
 	    engine_destroy(E)).
 
@@ -100,13 +100,13 @@ sum(Sum) :-
 %	to the second, ... up to the end.
 
 whisper(N, From, Final) :-
-	engine_create(Last, _, final),
+	engine_create(_, final, Last),
 	whisper_list(N, Last, First),
 	engine_put(First, [From], Final).
 
 whisper_list(0, First, First) :- !.
 whisper_list(N, Next, First) :-
-	engine_create(Me, _, add1_and_tell(Next)),
+	engine_create(_, add1_and_tell(Next), Me),
 	N1 is N - 1,
 	whisper_list(N1, Me, First).
 
@@ -127,7 +127,7 @@ add1_and_tell(Next) :-
 no_data :-
 	catch(
 	    setup_call_cleanup(
-		engine_create(E, _, sum(0), []),
+		engine_create(_, sum(0), E),
 		maplist(engine_get(E), [1]),
 		engine_destroy(E)),
 	    Error,

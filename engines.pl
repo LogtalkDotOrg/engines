@@ -33,8 +33,8 @@
 */
 
 :- module(engines,
-	  [ engine_create/3,		% -Ref, ?Template, :Goal
-	    engine_create/4,		% -Ref, ?Template, :Goal, +Options
+	  [ engine_create/3,		% ?Template, :Goal, -Engine
+	    engine_create/4,		% ?Template, :Goal, -Engine, +Options
 	    engine_get/2,		% +Ref, -Term
 	    engine_put/3,		% +Ref, +Terms, -Reply
 	    engine_return/1,		% +Term
@@ -45,12 +45,12 @@
 :- load_foreign_library(engines).
 
 :- meta_predicate
-	engine_create(-, ?, 0),
-	engine_create(-, ?, 0, +).
+	engine_create(?, 0, -),
+	engine_create(?, 0, -, +).
 
 /** <module> Engine prototype
 
-@tbd	Allow engines to produce and consume terms.
+
 */
 
 %%	engine_create(-Engine, ?Template, :Goal) is det.
@@ -59,9 +59,9 @@
 %	Create a new engine, prepared to run  Goal and return answers as
 %	instances of Template. Goal is not started.
 
-engine_create(Engine, Template, Goal) :-
+engine_create(Template, Goal, Engine) :-
 	'$engine_create'(Engine, Template+Goal, []).
-engine_create(Engine, Template, Goal, Options) :-
+engine_create(Template, Goal, Engine, Options) :-
 	'$engine_create'(Engine, Template+Goal, Options).
 
 %%	engine_get(+Engine, -Term) is semidet.
