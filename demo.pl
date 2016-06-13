@@ -18,6 +18,24 @@ get_answers(E, [H|T]) :-
 	get_answers(E, T).
 get_answers(_, []).
 
+%%  find_at_most(+N, ?Template, :Goal, -List)
+%
+%   Engine based findall/3 variant that finds at most N answers.
+
+find_at_most(N, Template, Goal, List) :-
+	engine_create(Engine, Template, Goal),
+	collect_at_most(N, Engine, List0),
+	engine_destroy(Engine),
+	List = List0.
+
+collect_at_most(N, Engine, [X| Xs]) :-
+	N > 0,
+	engine_get(Engine, X),
+	!,
+	M is N - 1,
+	collect_at_most(M, Engine, Xs).
+collect_at_most(_, _, []).
+
 %%	test_gc(+N)
 %
 %	Test that engines are subject to atom-GC.
