@@ -35,13 +35,14 @@
 :- module(engines,
 	  [ engine_create/3,		% ?Template, :Goal, -Engine
 	    engine_create/4,		% ?Template, :Goal, -Engine, +Options
-	    engine_next_answer/2,	% +Ref, -Term
-	    engine_post/2,		% +Ref, +Term
-	    engine_post/3,		% +Ref, +Term, -Reply
+	    engine_next_answer/2,	% +Engine, -Term
+	    engine_post/2,		% +Engine, +Term
+	    engine_post/3,		% +Engine, +Term, -Reply
 	    engine_yield/1,		% +Term
 	    engine_fetch/1,		% -Term
-	    engine_destroy/1,		% +Ref
-	    current_engine/1		% ?Ref
+	    engine_destroy/1,		% +Engine
+	    current_engine/1,		% ?Engine
+	    is_engine/1			% @Engine
 	  ]).
 :- load_foreign_library(engines).
 
@@ -125,3 +126,12 @@ engine_yield(_Term, _Code) :-
 current_engine(E) :-
 	current_blob(E, engine),
 	'$engine_exists'(E).
+
+%%	is_engine(@Engine) is semidet.
+%
+%	True when Engine is an existing engine.
+
+is_engine(Engine) :-
+	nonvar(Engine),
+	current_blob(Engine, engine),
+	'$engine_exists'(Engine).
