@@ -248,7 +248,9 @@ pl_engine_create(term_t ref, term_t template_and_goal, term_t options)
 	PL_recorded(r, t) &&
 	PL_get_arg(1, t, er->argv+0) &&
 	PL_get_arg(2, t, er->argv+1) )
-  { er->query = PL_open_query(NULL, PL_Q_CATCH_EXCEPTION, pred, er->argv+1);
+  { er->query = PL_open_query(NULL,
+			      PL_Q_CATCH_EXCEPTION|PL_Q_ALLOW_YIELD,
+			      pred, er->argv+1);
     PL_set_engine(me, NULL);
   } else
   { assert(0);					/* TBD: copy exception */
