@@ -39,8 +39,6 @@
 #include <SWI-Stream.h>
 #include <SWI-Prolog.h>
 
-static atom_t ATOM_end_of_file;
-
 #define COMPARE_AND_SWAP(ptr,o,n)	__sync_bool_compare_and_swap(ptr,o,n)
 
 
@@ -55,6 +53,7 @@ typedef struct engref
   atom_t         symbol;		/* associated symbol */
   qid_t	         query;			/* query of the engine */
   term_t         argv;			/* arguments */
+  record_t	 package;		/* engine_post/2 */
   struct engref *next_free;		/* next in free list */
   int	         flags;			/* flags */
 } engref;
@@ -198,7 +197,7 @@ unify_engine(term_t t, engref *er)
 
 
 static int
-get_engine(term_t t, engref **erp)
+get_engine(term_t t, engref **erp, int warn)
 { void *data;
   size_t len;
   PL_blob_t *type;
@@ -210,12 +209,15 @@ get_engine(term_t t, engref **erp)
     if ( !(er->flags & ENG_DESTROYED) )
     { *erp = er;
       return TRUE;
-    } else
+    } else if ( warn )
     { PL_existence_error("engine", t);
     }
   }
 
-  return PL_type_error("engine", t);
+  if ( warn )
+    PL_type_error("engine", t);
+
+  return FALSE;
 }
 
 
@@ -259,19 +261,14 @@ pl_engine_create(term_t ref, term_t template_and_goal, term_t options)
 
 
 static foreign_t
-pl_engine_send_get(term_t ref, term_t to_list, term_t term)
+pl_engine_post_get(term_t ref, term_t package, term_t term)
 { engref *er;
 
-  if ( get_engine(ref, &er) )
+  if ( get_engine(ref, &er, TRUE) )
   { PL_engine_t me;
-    term_t to_tail, to_head;
 
-    if ( to_list )
-    { to_tail = PL_copy_term_ref(to_list);
-      to_head = PL_new_term_ref();
-    } else
-    { to_tail = 0;
-    }
+    if ( package && er->package )
+      return PL_permission_error("post_to", "engine", package);
 
     switch( PL_set_engine(er->engine, &me) )
     { case PL_ENGINE_SET:
@@ -290,29 +287,37 @@ pl_engine_send_get(term_t ref, term_t to_list, term_t term)
 	      r = PL_record(PL_yielded(er->query));
 	      break;
 	    case 3:
+	      if ( package )
 	      { term_t t;
 
 		PL_set_engine(me, NULL);
-		if ( to_tail && PL_get_list(to_tail, to_head, to_tail) )
-		  r = PL_record(to_head);
-		else
-		  r = 0;
-
+		r = PL_record(package);
 		PL_set_engine(er->engine, NULL);
-		if ( r )
-		{ rc = ( (t = PL_new_term_ref()) &&
-			 PL_recorded(r, t) &&
-			 PL_unify(t, PL_yielded(er->query)) );
-		  PL_erase(r);
-		} else
-		{ rc = PL_unify_atom(PL_yielded(er->query), ATOM_end_of_file);
-		}
-		assert(rc);			/* TBD: what if rc is FALSE? */
+		rc = ( (t = PL_new_term_ref()) &&
+		       PL_recorded(r, t) &&
+		       PL_unify(t, PL_yielded(er->query)) );
+		PL_erase(r);
+		package = 0;		/* term was collected */
+		goto again;
+	      } else if ( er->package )
+	      { PL_set_engine(er->engine, NULL);
+		rc = ( (t = PL_new_term_ref()) &&
+		       PL_recorded(er->package, t) &&
+		       PL_unify(t, PL_yielded(er->query)) );
+		PL_erase(er->package);
+		er->package = 0;
+		goto again;
+	      } else
+	      {				/* TBD: better error */
+		PL_existence_error("engine_term", PL_yielded(er->query));
 		goto again;
 	      }
 	    default:
-	      Sdprintf("Yielded code %d!?\n", rc);
-	      assert(0);			/* TBD: error? */
+	    { term_t ex = PL_new_term_ref();
+
+	      return ( PL_put_integer(ex, rc) &&
+		       PL_domain_error("engine_yield_code", ex) );
+	    }
 	  }
 
 	  PL_set_engine(me, NULL);
@@ -355,13 +360,28 @@ pl_engine_send_get(term_t ref, term_t to_list, term_t term)
 
 static foreign_t
 pl_engine_get(term_t ref, term_t term)
-{ return pl_engine_send_get(ref, 0, term);
+{ return pl_engine_post_get(ref, 0, term);
 }
 
 
 static foreign_t
-pl_engine_put(term_t ref, term_t to, term_t term)
-{ return pl_engine_send_get(ref, to, term);
+pl_engine_post3(term_t ref, term_t package, term_t term)
+{ return pl_engine_post_get(ref, package, term);
+}
+
+
+static foreign_t
+pl_engine_post2(term_t ref, term_t package)
+{ engref *er;
+
+  if ( get_engine(ref, &er, TRUE) )
+  { if ( er->package )
+      return PL_permission_error("post_to", "engine", package);
+    if ( (er->package = PL_record(package)) )
+      return TRUE;
+  }
+
+  return FALSE;
 }
 
 
@@ -369,7 +389,7 @@ static foreign_t
 pl_engine_destroy(term_t ref)
 { engref *er;
 
-  if ( get_engine(ref, &er) )
+  if ( get_engine(ref, &er, TRUE) )
   { if ( er->query )
     { PL_engine_t me;
 
@@ -391,12 +411,20 @@ pl_engine_destroy(term_t ref)
 }
 
 
+static foreign_t
+pl_engine_exists(term_t ref)
+{ engref *er;
+
+  return get_engine(ref, &er, FALSE);
+}
+
+
 install_t
 install_engines(void)
-{ ATOM_end_of_file = PL_new_atom("end_of_file");
-
-  PL_register_foreign("$engine_create", 3, pl_engine_create,  0);
+{ PL_register_foreign("$engine_create", 3, pl_engine_create,  0);
   PL_register_foreign("engine_get",     2, pl_engine_get,     0);
-  PL_register_foreign("engine_put",     3, pl_engine_put,     0);
+  PL_register_foreign("engine_post",    2, pl_engine_post2,   0);
+  PL_register_foreign("engine_post",    3, pl_engine_post3,   0);
   PL_register_foreign("engine_destroy", 1, pl_engine_destroy, 0);
+  PL_register_foreign("$engine_exists", 1, pl_engine_exists,  0);
 }

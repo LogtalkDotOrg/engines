@@ -1,5 +1,4 @@
 :- use_module(engines).
-:- use_module(library(yall)).
 
 :- meta_predicate
 	fa(?, 0, -).
@@ -85,11 +84,11 @@ rd(N, Sums) :-
 	numlist(1, N, List),
 	setup_call_cleanup(
 	    engine_create(_, sum(0), E),
-	    maplist([X]>>engine_put(E, [X]), List, Sums),
+	    maplist(engine_post(E), List, Sums),
 	    engine_destroy(E)).
 
 sum(Sum) :-
-	engine_read(New),
+	engine_fetch(New),
 	Sum1 is New + Sum,
 	engine_return(Sum1),
 	sum(Sum1).
@@ -102,7 +101,7 @@ sum(Sum) :-
 whisper(N, From, Final) :-
 	engine_create(_, final, Last),
 	whisper_list(N, Last, First),
-	engine_put(First, [From], Final).
+	engine_post(First, From, Final).
 
 whisper_list(0, First, First) :- !.
 whisper_list(N, Next, First) :-
@@ -111,14 +110,14 @@ whisper_list(N, Next, First) :-
 	whisper_list(N1, Me, First).
 
 final :-
-	engine_read(X),
+	engine_fetch(X),
 	writeln(X).
 
 add1_and_tell(Next) :-
-	engine_read(X),
+	engine_fetch(X),
 	X2 is X + 1,
 	debug(whisper, 'Sending ~d to ~p', [X2, Next]),
-	engine_put(Next, [X2], _).
+	engine_post(Next, X2, _).
 
 %%	no_data
 %

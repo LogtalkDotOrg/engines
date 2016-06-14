@@ -8,17 +8,13 @@
 % current engine API explicit.  See
 % https://github.com/JanWielemaker/engines/issues/2
 
-:- dynamic queue/2.
-
 new_engine(Template, Goal, Engine) :- engine_create(Template, Goal, Engine).
 return(Term) :-	engine_return(Term).
-from_engine(Term) :- engine_read(Term).
-to_engine(Engine, Term) :-
-	assertz(queue(Engine, Term)).
+from_engine(Term) :- engine_fetch(Term).
+to_engine(Engine, Term) :- engine_post(Engine, Term).
 
 get(Engine, Answer) :-
-	findall(Term, retract(queue(Engine, Term)), Terms),
-	(   catch(engine_put(Engine, Terms, Answer0), E, true)
+	(   catch(engine_get(Engine, Answer0), E, true)
 	->  (   var(E)
 	    ->  Answer = the(Answer0)
 	    ;   Answer = exception(E)

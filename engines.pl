@@ -36,9 +36,10 @@
 	  [ engine_create/3,		% ?Template, :Goal, -Engine
 	    engine_create/4,		% ?Template, :Goal, -Engine, +Options
 	    engine_get/2,		% +Ref, -Term
-	    engine_put/3,		% +Ref, +Terms, -Reply
+	    engine_post/2,		% +Ref, +Term
+	    engine_post/3,		% +Ref, +Term, -Reply
 	    engine_return/1,		% +Term
-	    engine_read/1,		% -Term
+	    engine_fetch/1,		% -Term
 	    engine_destroy/1,		% +Ref
 	    current_engine/1		% ?Ref
 	  ]).
@@ -73,10 +74,28 @@ engine_create(Template, Goal, Engine, Options) :-
 %	Goal. Fails of Goal has no  more   solutions.  If Goal raises an
 %	exception the exception is re-raised by this predicate.
 
-%%	engine_put(+Engine, +Terms, -Reply) is semidet.
+%%	engine_post(+Engine, +Package) is det.
 %
-%	Same as engine_get/2,  but  make  terms   from  the  list  Terms
-%	available for engine_read/1 when called from within Engine.
+%	Make the term Package available   for engine_fetch/1 from within
+%	the engine. At most one term can   be  made available. Posting a
+%	package does not cause  the  engine   to  wakeup.  Therefore, an
+%	engine_get/2 call must follow a call   to this predicate to make
+%	the  engine  fetch  the  package.  The  predicate  engine_post/3
+%	combines engine_post/2 and engine_get/2.
+%
+%	@error permission_error(post_to, engine, Package) if a package
+%	was already posted and has not yet been fetched by the engine.
+
+%%	engine_post(+Engine, +Package, -Reply) is semidet.
+%
+%	Same as engine_get/2, but transfer  Term   to  Engine  if Engine
+%	calls engine_read/1.  Acts as:
+%
+%	  ==
+%	  engine_post(Engine, Package, Answer) :-
+%	      engine_post(Engine, Package),
+%	      engine_get(Engine, Answer).
+%	  ==
 
 %%	engine_destroy(+Engine) is det.
 %
@@ -90,13 +109,7 @@ engine_create(Template, Goal, Engine, Options) :-
 engine_return(Term) :-
 	engine_yield(Term, 2).
 
-%%	engine_read(-Term) is det.
-%
-%	Read the next term  from  the   list  of  terms provided through
-%	engine_put/3.  Returns  `end_of_file`  of  the    term  list  is
-%	exhausted.
-
-engine_read(Term) :-
+engine_fetch(Term) :-
 	engine_yield(Term, 3).
 
 engine_yield(_Term, _Code) :-
@@ -109,4 +122,5 @@ engine_yield(_Term, _Code) :-
 %	True if E is a currently know engine.
 
 current_engine(E) :-
-	current_blob(E, engine).
+	current_blob(E, engine),
+	'$engine_exists'(E).
