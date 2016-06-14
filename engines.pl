@@ -35,10 +35,10 @@
 :- module(engines,
 	  [ engine_create/3,		% ?Template, :Goal, -Engine
 	    engine_create/4,		% ?Template, :Goal, -Engine, +Options
-	    engine_get/2,		% +Ref, -Term
+	    engine_next_answer/2,	% +Ref, -Term
 	    engine_post/2,		% +Ref, +Term
 	    engine_post/3,		% +Ref, +Term, -Reply
-	    engine_return/1,		% +Term
+	    engine_yield/1,		% +Term
 	    engine_fetch/1,		% -Term
 	    engine_destroy/1,		% +Ref
 	    current_engine/1		% ?Ref
@@ -65,14 +65,15 @@ engine_create(Template, Goal, Engine) :-
 engine_create(Template, Goal, Engine, Options) :-
 	'$engine_create'(Engine, Template+Goal, Options).
 
-%%	engine_get(+Engine, -Term) is semidet.
+%%	engine_next_answer(+Engine, -Term) is semidet.
 %
 %	Switch control to Engine and if engine produces a result, switch
 %	control  back  and  unify   the    instance   of  Template  from
-%	engine_create/3,4 with Term. Repeatedly  calling engine_get/2 on
-%	Engine retrieves new instances of  Template by backtracking over
-%	Goal. Fails of Goal has no  more   solutions.  If Goal raises an
-%	exception the exception is re-raised by this predicate.
+%	engine_create/3,4     with     Term.      Repeatedly     calling
+%	engine_next_answer/2  on  Engine  retrieves   new  instances  of
+%	Template by backtracking over Goal. Fails   of  Goal has no more
+%	solutions.  If  Goal  raises  an   exception  the  exception  is
+%	re-raised by this predicate.
 
 %%	engine_post(+Engine, +Package) is det.
 %
@@ -102,11 +103,11 @@ engine_create(Template, Goal, Engine, Options) :-
 %	Destroy Engine. Eventually, engine  destruction   will  also  be
 %	subject to symbol garbage collection.
 
-%%	engine_return(+Term) is det.
+%%	engine_yield(+Term) is det.
 %
-%	Make engine_get/2 return with the given term.
+%	Make engine_answer/2 return with the given term.
 
-engine_return(Term) :-
+engine_yield(Term) :-
 	engine_yield(Term, 2).
 
 engine_fetch(Term) :-

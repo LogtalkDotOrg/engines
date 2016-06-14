@@ -14,7 +14,7 @@ fa(Templ, Goal, List) :-
 	    engine_destroy(E)).
 
 get_answers(E, [H|T]) :-
-	engine_get(E, H), !,
+	engine_next_answer(E, H), !,
 	get_answers(E, T).
 get_answers(_, []).
 
@@ -30,7 +30,7 @@ find_at_most(N, Template, Goal, List) :-
 
 collect_at_most(N, Engine, [X| Xs]) :-
 	N > 0,
-	engine_get(Engine, X),
+	engine_next_answer(Engine, X),
 	!,
 	M is N - 1,
 	collect_at_most(M, Engine, Xs).
@@ -59,7 +59,7 @@ create(E) :-
 %%	yield(+Length, -List)
 %
 %	Fetch  answers  from  an   engine    that   returns  them  using
-%	engine_return/1.  This  realises  coroutines,  where  the  slave
+%	engine_yield/1.  This  realises  coroutines,  where  the  slave
 %	engine has the initiative.  Note   that  yield_loop/2 eventually
 %	fails. If we succeed we would extract   one more answer from the
 %	engine.
@@ -72,7 +72,7 @@ yield(Len, List) :-
 
 yield_loop(I, M) :-
 	I =< M, !,
-	engine_return(I),
+	engine_yield(I),
 	I2 is I+1,
 	yield_loop(I2, M).
 
@@ -90,7 +90,7 @@ rd(N, Sums) :-
 sum(Sum) :-
 	engine_fetch(New),
 	Sum1 is New + Sum,
-	engine_return(Sum1),
+	engine_yield(Sum1),
 	sum(Sum1).
 
 %%	whisper(N, Term)
@@ -127,7 +127,7 @@ no_data :-
 	catch(
 	    setup_call_cleanup(
 		engine_create(_, sum(0), E),
-		maplist(engine_get(E), [1]),
+		maplist(engine_next_answer(E), [1]),
 		engine_destroy(E)),
 	    Error,
 	    print_message(warning, Error)).
