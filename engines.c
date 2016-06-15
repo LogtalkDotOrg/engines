@@ -46,7 +46,8 @@
 		 *	       SYMBOL		*
 		 *******************************/
 
-#define ENG_DESTROYED	0x0001
+#define ENG_DESTROYED	0x0001		/* Was destroyed by user  */
+#define ENG_NOMORE	0x0002		/* Query succeeded deterministic */
 
 typedef struct engref
 { PL_engine_t    engine;		/* represented engine */
@@ -271,6 +272,13 @@ pl_engine_post_answer(term_t ref, term_t package, term_t term)
 
     if ( package && er->package )
       return PL_permission_error("post_to", "engine", package);
+    if ( !er->query )
+    { if ( (er->flags & ENG_NOMORE) )
+      { er->flags &= ~ENG_NOMORE;
+	return FALSE;
+      }
+      return PL_existence_error("engine", ref);
+    }
 
     switch( PL_set_engine(er->engine, &me) )
     { case PL_ENGINE_SET:
@@ -335,6 +343,8 @@ pl_engine_post_answer(term_t ref, term_t package, term_t term)
 	  PL_close_query(er->query);
 	  er->query = 0;
 	  PL_set_engine(me, NULL);
+	  PL_destroy_engine(er->engine);
+	  er->engine = NULL;
 
 	  rc = ( PL_recorded(r, t) && PL_raise_exception(t) );
 	  PL_erase(r);
@@ -344,6 +354,9 @@ pl_engine_post_answer(term_t ref, term_t package, term_t term)
 	{ PL_close_query(er->query);
 	  er->query = 0;
 	  PL_set_engine(me, NULL);
+	  PL_destroy_engine(er->engine);
+	  er->engine = NULL;
+
 	  return FALSE;
 	}
       }
