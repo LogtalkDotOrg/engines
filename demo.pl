@@ -14,7 +14,7 @@ fa(Templ, Goal, List) :-
 	    engine_destroy(E)).
 
 get_answers(E, [H|T]) :-
-	engine_next_answer(E, H), !,
+	engine_next(E, H), !,
 	get_answers(E, T).
 get_answers(_, []).
 
@@ -30,7 +30,7 @@ find_at_most(N, Template, Goal, List) :-
 
 collect_at_most(N, Engine, [X| Xs]) :-
 	N > 0,
-	engine_next_answer(Engine, X),
+	engine_next(Engine, X),
 	!,
 	M is N - 1,
 	collect_at_most(M, Engine, Xs).
@@ -127,7 +127,7 @@ no_data :-
 	catch(
 	    setup_call_cleanup(
 		engine_create(_, sum(0), E),
-		maplist(engine_next_answer(E), [1]),
+		maplist(engine_next(E), [1]),
 		engine_destroy(E)),
 	    Error,
 	    print_message(warning, Error)).

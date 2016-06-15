@@ -35,7 +35,7 @@
 :- module(engines,
 	  [ engine_create/3,		% ?Template, :Goal, -Engine
 	    engine_create/4,		% ?Template, :Goal, -Engine, +Options
-	    engine_next_answer/2,	% +Engine, -Term
+	    engine_next/2,		% +Engine, -Term
 	    engine_post/2,		% +Engine, +Term
 	    engine_post/3,		% +Engine, +Term, -Reply
 	    engine_yield/1,		% +Term
@@ -66,37 +66,36 @@ engine_create(Template, Goal, Engine) :-
 engine_create(Template, Goal, Engine, Options) :-
 	'$engine_create'(Engine, Template+Goal, Options).
 
-%%	engine_next_answer(+Engine, -Term) is semidet.
+%%	engine_next(+Engine, -Term) is semidet.
 %
 %	Switch control to Engine and if engine produces a result, switch
 %	control  back  and  unify   the    instance   of  Template  from
-%	engine_create/3,4     with     Term.      Repeatedly     calling
-%	engine_next_answer/2  on  Engine  retrieves   new  instances  of
-%	Template by backtracking over Goal. Fails   of  Goal has no more
-%	solutions.  If  Goal  raises  an   exception  the  exception  is
-%	re-raised by this predicate.
+%	engine_create/3,4 with Term. Repeatedly calling engine_next/2 on
+%	Engine retrieves new instances of  Template by backtracking over
+%	Goal. Fails of Goal has no  more   solutions.  If Goal raises an
+%	exception the exception is re-raised by this predicate.
 
 %%	engine_post(+Engine, +Package) is det.
 %
 %	Make the term Package available   for engine_fetch/1 from within
 %	the engine. At most one term can   be  made available. Posting a
 %	package does not cause  the  engine   to  wakeup.  Therefore, an
-%	engine_get/2 call must follow a call   to this predicate to make
-%	the  engine  fetch  the  package.  The  predicate  engine_post/3
-%	combines engine_post/2 and engine_get/2.
+%	engine_next/2 call must follow a call to this predicate to make
+%	the engine fetch the package. The predicate engine_post/3
+%	combines engine_post/2 and engine_next/2.
 %
 %	@error permission_error(post_to, engine, Package) if a package
 %	was already posted and has not yet been fetched by the engine.
 
 %%	engine_post(+Engine, +Package, -Reply) is semidet.
 %
-%	Same as engine_get/2, but transfer  Term   to  Engine  if Engine
-%	calls engine_read/1.  Acts as:
+%	Same as engine_next/2, but transfer Term to Engine if Engine
+%	calls engine_fetch/1. Acts as:
 %
 %	  ==
 %	  engine_post(Engine, Package, Answer) :-
 %	      engine_post(Engine, Package),
-%	      engine_get(Engine, Answer).
+%	      engine_next(Engine, Answer).
 %	  ==
 
 %%	engine_destroy(+Engine) is det.

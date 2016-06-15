@@ -361,7 +361,7 @@ pl_engine_post_answer(term_t ref, term_t package, term_t term)
 
 
 static foreign_t
-pl_engine_next_answer(term_t ref, term_t term)
+pl_engine_next(term_t ref, term_t term)
 { return pl_engine_post_answer(ref, 0, term);
 }
 
@@ -423,10 +423,10 @@ pl_engine_exists(term_t ref)
 
 install_t
 install_engines(void)
-{ PL_register_foreign("$engine_create",	    3, pl_engine_create,      0);
-  PL_register_foreign("engine_next_answer", 2, pl_engine_next_answer, 0);
-  PL_register_foreign("engine_post",	    2, pl_engine_post2,	      0);
-  PL_register_foreign("engine_post",	    3, pl_engine_post3,	      0);
-  PL_register_foreign("engine_destroy",	    1, pl_engine_destroy,     0);
-  PL_register_foreign("$engine_exists",	    1, pl_engine_exists,      0);
+{ PL_register_foreign("$engine_create",	3, pl_engine_create,  0);
+  PL_register_foreign("engine_next",	2, pl_engine_next,    0);
+  PL_register_foreign("engine_post",	2, pl_engine_post2,   0);
+  PL_register_foreign("engine_post",	3, pl_engine_post3,   0);
+  PL_register_foreign("engine_destroy",	1, pl_engine_destroy, 0);
+  PL_register_foreign("$engine_exists",	1, pl_engine_exists,  0);
 }
