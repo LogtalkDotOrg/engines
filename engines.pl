@@ -108,15 +108,10 @@ engine_create(Template, Goal, Engine, Options) :-
 %	Make engine_answer/2 return with the given term.
 
 engine_yield(Term) :-
-	engine_yield(Term, 2).
+	'$engine_yield'(Term, 256).
 
 engine_fetch(Term) :-
-	engine_yield(Term, 3).
-
-engine_yield(_Term, _Code) :-
-	'$yield'.				% maps to I_YIELD
-
-'$yield'.					% fool xref
+	'$engine_yield'(Term, 257).
 
 %%	current_engine(?E)
 %

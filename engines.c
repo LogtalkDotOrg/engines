@@ -250,7 +250,9 @@ pl_engine_create(term_t ref, term_t template_and_goal, term_t options)
 	PL_get_arg(1, t, er->argv+0) &&
 	PL_get_arg(2, t, er->argv+1) )
   { er->query = PL_open_query(NULL,
-			      PL_Q_CATCH_EXCEPTION|PL_Q_ALLOW_YIELD,
+			      PL_Q_CATCH_EXCEPTION|
+			      PL_Q_ALLOW_YIELD|
+			      PL_Q_EXT_STATUS,
 			      pred, er->argv+1);
     PL_set_engine(me, NULL);
   } else
@@ -284,81 +286,94 @@ pl_engine_post_answer(term_t ref, term_t package, term_t term)
     { case PL_ENGINE_SET:
       { term_t t;
 	int rc;
+	record_t r;
 
       again:
-	if ( (rc=PL_next_solution(er->query)) )
-	{ record_t r;
+	rc = PL_next_solution(er->query);
+        switch( rc )
+	{ case PL_S_TRUE:
+	  { r = PL_record(er->argv+0);
+	    break;
+	  }
+	  case PL_S_LAST:
+	  { r = PL_record(er->argv+0);
+	    PL_close_query(er->query);
+	    er->query = 0;
+	    er->flags |= ENG_NOMORE;
+	    break;
+	  }
+	  case PL_S_FALSE:
+	  { PL_close_query(er->query);
+	    er->query = 0;
+	    PL_set_engine(me, NULL);
+	    PL_destroy_engine(er->engine);
+	    er->engine = NULL;
 
-	  switch(rc)
-	  { case TRUE:
-	      r = PL_record(er->argv+0);
-	      break;
-	    case 2:
-	      r = PL_record(PL_yielded(er->query));
-	      break;
-	    case 3:
-	      if ( package )
-	      { term_t t;
+	    return FALSE;
+	  }
+	  case PL_S_EXCEPTION:
+	  { term_t t = PL_exception(er->query);
+	    record_t r = PL_record(t);
+	    int rc;
 
-		PL_set_engine(me, NULL);
-		r = PL_record(package);
-		PL_set_engine(er->engine, NULL);
-		rc = ( (t = PL_new_term_ref()) &&
-		       PL_recorded(r, t) &&
-		       PL_unify(t, PL_yielded(er->query)) );
-		PL_erase(r);
-		package = 0;		/* term was collected */
-		goto again;
-	      } else if ( er->package )
-	      { PL_set_engine(er->engine, NULL);
-		rc = ( (t = PL_new_term_ref()) &&
-		       PL_recorded(er->package, t) &&
-		       PL_unify(t, PL_yielded(er->query)) );
-		PL_erase(er->package);
-		er->package = 0;
-		goto again;
-	      } else
-	      {				/* TBD: better error */
-		PL_existence_error("engine_term", PL_yielded(er->query));
-		goto again;
-	      }
-	    default:
-	    { term_t ex = PL_new_term_ref();
+	    PL_close_query(er->query);
+	    er->query = 0;
+	    PL_set_engine(me, NULL);
+	    PL_destroy_engine(er->engine);
+	    er->engine = NULL;
 
-	      return ( PL_put_integer(ex, rc) &&
-		       PL_domain_error("engine_yield_code", ex) );
+	    rc = ( PL_recorded(r, t) && PL_raise_exception(t) );
+	    PL_erase(r);
+	    return rc;
+	  }
+	  case 256:				/* engine_yield/1 */
+	  { r = PL_record(PL_yielded(er->query));
+	    break;
+	  }
+	  case 257:				/* engine_fetch/1 */
+	  { if ( package )
+	    { term_t t;
+
+	      PL_set_engine(me, NULL);
+	      r = PL_record(package);
+	      PL_set_engine(er->engine, NULL);
+	      rc = ( (t = PL_new_term_ref()) &&
+		     PL_recorded(r, t) &&
+		     PL_unify(t, PL_yielded(er->query)) );
+	      PL_erase(r);
+	      package = 0;		/* term was collected */
+	      goto again;
+	    } else if ( er->package )
+	    { PL_set_engine(er->engine, NULL);
+	      rc = ( (t = PL_new_term_ref()) &&
+		     PL_recorded(er->package, t) &&
+		     PL_unify(t, PL_yielded(er->query)) );
+	      PL_erase(er->package);
+	      er->package = 0;
+	      goto again;
+	    } else			/* TBD: better error */
+	    { PL_existence_error("engine_term", PL_yielded(er->query));
+	      goto again;
 	    }
 	  }
+	  default:
+	  { term_t ex = PL_new_term_ref();
 
-	  PL_set_engine(me, NULL);
-	  t = PL_new_term_ref();
-	  rc = ( PL_recorded(r, t) && PL_unify(term, t) );
-	  PL_erase(r);
-
-	  return rc;
-	} else if ( (t = PL_exception(er->query)) )
-	{ record_t r = PL_record(t);
-	  int rc;
-
-	  PL_close_query(er->query);
-	  er->query = 0;
-	  PL_set_engine(me, NULL);
-	  PL_destroy_engine(er->engine);
-	  er->engine = NULL;
-
-	  rc = ( PL_recorded(r, t) && PL_raise_exception(t) );
-	  PL_erase(r);
-
-	  return rc;
-	} else
-	{ PL_close_query(er->query);
-	  er->query = 0;
-	  PL_set_engine(me, NULL);
-	  PL_destroy_engine(er->engine);
-	  er->engine = NULL;
-
-	  return FALSE;
+	    return ( PL_put_integer(ex, rc) &&
+		     PL_domain_error("engine_yield_code", ex) );
+	  }
 	}
+
+        PL_set_engine(me, NULL);
+	if ( rc == PL_S_LAST )
+	{ PL_destroy_engine(er->engine);
+	  er->engine = NULL;
+	}
+	t = PL_new_term_ref();
+	rc = ( PL_recorded(r, t) && PL_unify(term, t) );
+	PL_erase(r);
+
+	return rc;
       }
       case PL_ENGINE_INUSE:
 	return PL_permission_error("resume", "engine", ref);
