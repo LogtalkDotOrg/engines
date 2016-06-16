@@ -9,12 +9,12 @@
 % https://github.com/JanWielemaker/engines/issues/2
 
 new_engine(Template, Goal, Engine) :- engine_create(Template, Goal, Engine).
-return(Term) :-	engine_return(Term).
+return(Term) :-	engine_yield(Term).
 from_engine(Term) :- engine_fetch(Term).
 to_engine(Engine, Term) :- engine_post(Engine, Term).
 
 get(Engine, Answer) :-
-	(   catch(engine_get(Engine, Answer0), E, true)
+	(   catch(engine_next(Engine, Answer0), E, true)
 	->  (   var(E)
 	    ->  Answer = the(Answer0)
 	    ;   Answer = exception(E)
