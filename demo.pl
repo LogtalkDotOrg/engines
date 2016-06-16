@@ -100,25 +100,25 @@ sum(Sum) :-
 %	to the second, ... up to the end.
 
 whisper(N, From, Final) :-
-	engine_create(_, final, Last),
+	engine_create(Final, final(Final), Last),
 	whisper_list(N, Last, First),
 	engine_post(First, From, Final).
 
 whisper_list(0, First, First) :- !.
 whisper_list(N, Next, First) :-
-	engine_create(_, add1_and_tell(Next), Me),
+	engine_create(Final, add1_and_tell(Next, Final), Me),
 	N1 is N - 1,
 	whisper_list(N1, Me, First).
 
-final :-
+final(X) :-
 	engine_fetch(X),
 	writeln(X).
 
-add1_and_tell(Next) :-
+add1_and_tell(Next, Final) :-
 	engine_fetch(X),
 	X2 is X + 1,
 	debug(whisper, 'Sending ~d to ~p', [X2, Next]),
-	engine_post(Next, X2, _).
+	engine_post(Next, X2, Final).
 
 %%	no_data
 %
