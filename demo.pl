@@ -1,7 +1,8 @@
 :- use_module(engines).
 
 :- meta_predicate
-	fa(?, 0, -).
+	fa(?, 0, -),
+	find_at_most(+, ?, 0, -).
 
 %%	fa(?Templ, :Goal, -List)
 %
