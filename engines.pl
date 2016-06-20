@@ -36,7 +36,7 @@
 	  [ engine_create/3,       % ?Template, :Goal, -Engine
 	    engine_create/4,       % ?Template, :Goal, -Engine, +Options
 	    engine_next/2,         % +Engine, -Term
-	    engine_next_reified/2  % +Engine, -Term
+	    engine_next_reified/2, % +Engine, -Term
 	    engine_post/2,         % +Engine, +Term
 	    engine_post/3,         % +Engine, +Term, -Reply
 	    engine_yield/1,        % +Term
