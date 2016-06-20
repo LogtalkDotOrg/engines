@@ -33,16 +33,17 @@
 */
 
 :- module(engines,
-	  [ engine_create/3,		% ?Template, :Goal, -Engine
-	    engine_create/4,		% ?Template, :Goal, -Engine, +Options
-	    engine_next/2,		% +Engine, -Term
-	    engine_post/2,		% +Engine, +Term
-	    engine_post/3,		% +Engine, +Term, -Reply
-	    engine_yield/1,		% +Term
-	    engine_fetch/1,		% -Term
-	    engine_destroy/1,		% +Engine
-	    current_engine/1,		% ?Engine
-	    is_engine/1			% @Engine
+	  [ engine_create/3,       % ?Template, :Goal, -Engine
+	    engine_create/4,       % ?Template, :Goal, -Engine, +Options
+	    engine_next/2,         % +Engine, -Term
+	    engine_next_reified/2  % +Engine, -Term
+	    engine_post/2,         % +Engine, +Term
+	    engine_post/3,         % +Engine, +Term, -Reply
+	    engine_yield/1,        % +Term
+	    engine_fetch/1,        % -Term
+	    engine_destroy/1,      % +Engine
+	    current_engine/1,      % ?Engine
+	    is_engine/1            % @Engine
 	  ]).
 :- load_foreign_library(engines).
 
@@ -74,6 +75,21 @@ engine_create(Template, Goal, Engine, Options) :-
 %	Engine retrieves new instances of  Template by backtracking over
 %	Goal. Fails of Goal has no  more   solutions.  If Goal raises an
 %	exception the exception is re-raised by this predicate.
+
+%%	engine_next_reified(+Engine, -Term) is det.
+%
+%	Similar to engine_next/2 but returning answers in reified form.
+%	Answers  are  returned  using  the  terms  the(Answer), no, and
+%	exception(Error).
+
+engine_next_reified(Engine, Answer) :-
+	(   catch(engine_next(Engine, Answer0), Error, true)
+	->  (   var(Error)
+	    ->  Answer = the(Answer0)
+	    ;   Answer = exception(Engine)
+	    )
+	;   Answer = no
+	).
 
 %%	engine_post(+Engine, +Package) is det.
 %
